@@ -16,7 +16,7 @@ REDDIT_SECRET = os.getenv("REDDIT_SECRET")
 REDDIT_USERNAME = os.getenv("REDDIT_USERNAME")
 REDDIT_PASSWORD = os.getenv("REDDIT_PASSWORD")
 
-SUBREDDIT = "wallpapers"
+SUBREDDIT = "wallpaper"
 
 USERAGENT = "windows:{}:v1 (by /u/{})".format(REDDIT_ID, REDDIT_USERNAME)
 
