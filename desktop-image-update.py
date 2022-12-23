@@ -155,7 +155,7 @@ def alreadyrantoday(data):
 temp_file_loc = ""
 access_token = getaccesstoken()
 saved_data = loaddata()
-print(saved_data)
+
 if alreadyrantoday(saved_data):
     savedata(saved_data)
     exit()
