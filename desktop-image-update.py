@@ -2,6 +2,7 @@ import ctypes
 import datetime
 import json
 import os.path
+import pickle
 import threading
 import time
 from urllib import request as ulreq
@@ -24,9 +25,11 @@ USERAGENT = "windows:{}:v1 (by /u/{})".format(REDDIT_ID, REDDIT_USERNAME)
 
 SCREEN_HEIGHT = 1440
 TEMP_LOC = "C:\\Users\\{}\\AppData\\Local\\Temp".format(os.getlogin())
+BIN_LOC = "{}\\diu-dat.tmp".format(TEMP_LOC)
 ALLOWED_TYPES = [".png", ".jpg", ".jpeg"]
 
 TODAY = datetime.date.today()
+TODAY_STR = TODAY.strftime("%Y-%m-%d")
 
 
 def getimagesize(uri):
@@ -86,23 +89,27 @@ def notify():
     # set here because running this in a thread quits cleaner than this handling it
 
 
-def savedata():
-    exit()
+# TODO: Add security measures https://snyk.io/blog/guide-to-python-pickle/
+def savedata(data):
+    with open(BIN_LOC, "wb") as f:
+        pickle.dump(data, f)
 
 
-def getsaveddata():
+def loaddata():
+    try:
+        with open(BIN_LOC, "rb") as f:
+            return pickle.load(f)
+    except (OSError, IOError) as e:
+        return defaultdata()
+
+
+def defaultdata():
     sampledata = """
     {
-        "lastupdate": "2022-12-22",
+        "lastupdate": "0000-00-00",
         "dates": {
-            "2022-12-13": [
-                "https://i.redd.it/6ib1hrf1bu6a1.jpg"
-            ],
-            "2022-12-14": [
-                "https://i.redd.it/6ib1hrf1bu6a1.jpg"
-            ],
-            "2022-12-22": [
-                "https://i.redd.it/6ib1hrf1bu6a1.jpg"
+            "0000-00-00": [
+                "abcd"
             ]
         }
     }
@@ -115,6 +122,10 @@ def clearolddata(data):
     week_ago = TODAY - datetime.timedelta(days=7)
 
     for key in list(data["dates"]):
+        if key == "0000-00-00":
+            del data["dates"][key]
+            continue
+
         converteddate = datetime.datetime.strptime(key, '%Y-%m-%d').date()
 
         if converteddate < week_ago:
@@ -125,13 +136,16 @@ def getallimageurls(data):
     temp = []
 
     for key in data["dates"].keys():
-        for imageurl in data["dates"][key]:
-            temp.append(imageurl)
+        for iurl in data["dates"][key]:
+            temp.append(iurl)
 
     return temp
 
 
 def alreadyrantoday(data):
+    if data["lastupdate"] == "0000-00-00":
+        return False
+
     todayfromdata = datetime.datetime.strptime(data["lastupdate"], '%Y-%m-%d').date()
     if todayfromdata == TODAY:
         return True
@@ -140,13 +154,14 @@ def alreadyrantoday(data):
 
 temp_file_loc = ""
 access_token = getaccesstoken()
-saveddata = getsaveddata()
-if alreadyrantoday(saveddata):
-    print("TODO: Pickle")
+saved_data = loaddata()
+print(saved_data)
+if alreadyrantoday(saved_data):
+    savedata(saved_data)
     exit()
 
-clearolddata(saveddata)
-imageurls = getallimageurls(saveddata)
+clearolddata(saved_data)
+imageurls = getallimageurls(saved_data)
 
 for top_post in getposts(access_token):
     imageurl = top_post['data']['url']
@@ -154,20 +169,19 @@ for top_post in getposts(access_token):
         if imageurl in imageurls:
             continue
 
-        print(imageurl)
         sizing = getimagesize(imageurl)
         height = sizing[1][1]
 
         if height >= SCREEN_HEIGHT:  # TODO: Make sure resolution matches, not just a minimum height
             temp_file_loc = downloadphoto(imageurl)
 
-            todaystring = TODAY.strftime("%Y-%m-%d")
-            if todaystring not in saveddata["dates"].keys():
-                saveddata["dates"][todaystring] = []
-            saveddata["dates"][todaystring].append(imageurl)
-            print(saveddata)
-            exit()
+            if TODAY_STR not in saved_data["dates"].keys():
+                saved_data["dates"][TODAY_STR] = []
+            saved_data["dates"][TODAY_STR].append(imageurl)
             break
+
+saved_data["lastupdate"] = TODAY_STR
+savedata(saved_data)
 
 if not temp_file_loc:
 
