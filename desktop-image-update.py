@@ -3,6 +3,7 @@ import datetime
 import json
 import os.path
 import pickle
+import sys
 import threading
 import time
 from urllib import request as ulreq
@@ -153,10 +154,16 @@ def alreadyrantoday(data):
 
 
 temp_file_loc = ""
+
+try:
+    force = (sys.argv[1] == "-f")
+except IndexError:
+    force = False
+
 access_token = getaccesstoken()
 saved_data = loaddata()
 
-if alreadyrantoday(saved_data):
+if not force and alreadyrantoday(saved_data):
     savedata(saved_data)
     exit()
 
